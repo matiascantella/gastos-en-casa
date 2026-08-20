@@ -1,0 +1,17 @@
+import { chromium } from 'playwright'
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })
+const p = await b.newPage({ viewport: { width: 1200, height: 900 } })
+const errs = []
+p.on('pageerror', (e) => errs.push(e.message))
+p.on('console', (m) => m.type() === 'error' && errs.push(m.text()))
+await p.goto('file:///home/claude/gastos-en-casa.html')
+await p.waitForSelector('text=Gastos en casa', { timeout: 10000 })
+const i = p.locator('input')
+await i.nth(0).fill('Uno'); await i.nth(1).fill('Dos')
+await p.getByRole('button', { name: 'Seguir' }).click()
+await p.getByRole('button', { name: 'Empezar' }).click()
+await p.waitForTimeout(600)
+const ok = await p.locator('text=/Todavía no hay nada|Armar el plan/').count()
+console.log('archivo único abre y funciona con file:// →', ok > 0 ? 'SÍ' : 'NO')
+console.log('errores:', errs.length, errs.slice(0,3).join(' | '))
+await b.close()

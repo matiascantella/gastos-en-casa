@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-plane text-ink antialiased;
+    font-feature-settings: 'tnum' 0;
+    overscroll-behavior-y: none;
+  }
+  /* Los números en columnas se alinean: tabular-nums en todo lo monetario */
+  .num { font-variant-numeric: tabular-nums; }
+  ::selection { background: #cde2fb; }
+  input, select, textarea, button { font: inherit; }
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type='number'] { -moz-appearance: textfield; }
+}
+
+@layer components {
+  .card { @apply bg-surface rounded-xl2 shadow-card border border-line/70; }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 h-10 text-[14px] font-medium
+           transition-colors select-none disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-primary { @apply btn bg-seq-450 text-white hover:bg-seq-500 active:bg-seq-550; }
+  .btn-ghost { @apply btn text-ink-soft hover:bg-line/40 active:bg-line/60; }
+  .btn-outline { @apply btn border border-line-strong text-ink-soft hover:bg-line/30; }
+  .btn-danger { @apply btn text-critical hover:bg-critical/10; }
+  .btn-sm { @apply h-8 px-2.5 text-[13px] rounded-md; }
+
+  .input {
+    @apply h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-[14px]
+           placeholder:text-ink-mute focus:outline-none focus:ring-2 focus:ring-seq-300 focus:border-seq-400;
+  }
+  .label { @apply block text-[12px] font-medium text-ink-soft mb-1.5; }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium
+           bg-line/50 text-ink-soft whitespace-nowrap;
+  }
+  .th { @apply text-[11px] font-semibold uppercase tracking-wide text-ink-mute text-left; }
+}
+
+/* scrollbars discretos */
+* { scrollbar-width: thin; scrollbar-color: #c3c2b7 transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: #d9d8d1; border-radius: 8px; border: 3px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: #c3c2b7; background-clip: content-box; }
+
+@media print {
+  .no-print { display: none !important; }
+}

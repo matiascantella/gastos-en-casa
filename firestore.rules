@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Un "hogar" es el espacio compartido de la pareja.
+    // Solo pueden leer y escribir los uid que figuran en la lista de miembros.
+    match /hogares/{hid} {
+      allow read: if request.auth != null;
+
+      // crear el hogar propio: el id tiene que ser tu uid y tenés que estar en miembros
+      allow create: if request.auth != null
+                    && hid == request.auth.uid
+                    && request.auth.uid in request.resource.data.miembros;
+
+      // sumarse a un hogar existente: solo podés agregarte a vos mismo,
+      // sin tocar a los que ya estaban
+      allow update: if request.auth != null
+                    && request.auth.uid in request.resource.data.miembros
+                    && resource.data.miembros.hasOnly(request.resource.data.miembros)
+                    && request.resource.data.miembros.size() <= resource.data.miembros.size() + 1;
+
+      allow delete: if request.auth != null && request.auth.uid == hid;
+
+      // Todo lo de adentro (movimientos, planes, reglas, ajustes) solo para miembros.
+      match /{documento=**} {
+        allow read, write: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/hogares/$(hid)).data.miembros;
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+node_modules
+dist-single
+shots
+.DS_Store
+*.local
+
+# Nunca subir a git:
+.firebaserc              # apunta a tu proyecto de Firebase
+gastos-respaldo-*.json   # el respaldo tiene TODOS tus movimientos
+test/*.csv               # extractos reales del banco
+!test/swedbank-ejemplo.csv
