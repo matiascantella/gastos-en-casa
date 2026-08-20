@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       # Playwright solo se usa para los tests locales; en CI no hace falta
       # que baje los navegadores (son ~150 MB y alargan el build).

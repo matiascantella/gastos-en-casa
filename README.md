@@ -1,148 +1,108 @@
 # Gastos en casa
 
-App de seguimiento de gastos y ahorros para una pareja. Funciona en la PC y se
-instala en Android. Importa los extractos de **LHV, Swedbank, Wise y Revolut**,
-clasifica los gastos sola, y compara mes a mes lo planeado contra lo que pasó
-de verdad.
+**Control de gastos y ahorro para dos.** Subís los extractos del banco, la app
+clasifica sola, y cada mes ves cuánto entró, cuánto salió y cuánto quedó —
+separado por persona y por cuenta.
+
+### → **[Abrir la app](https://matiascantella.github.io/gastos-en-casa/)**
+
+Funciona en el navegador, se instala en Android como una app más, y anda sin
+internet. Los datos son del hogar que la usa: no hay servidor de terceros en el medio.
 
 ---
 
-## Empezá acá
+## Qué resuelve
 
-Abrí **`PASO-A-PASO.html`** con doble clic: es la guía completa, desde probarla
-por primera vez hasta usarla todos los meses en pareja.
+Llevar las cuentas en pareja se rompe siempre por lo mismo: cada uno tiene sus
+cuentas en bancos distintos, hay una compartida, la plata se mueve entre ellas, y
+a fin de mes nadie sabe cuánto gastaron de verdad ni cuánto le quedó a cada uno.
+Una planilla no lo resuelve porque hay que cargar todo a mano y porque cuenta dos
+veces cada transferencia interna.
 
-**Para probarla en dos minutos:** abrí **`gastos-en-casa.html`** con doble clic.
-Es la app entera en un archivo, no necesita instalar nada ni tener internet.
-Los datos quedan en esa computadora.
+Esta app arranca del extracto del banco y llega al número real.
 
-**Para usarla en serio** (instalable en Android y sincronizada entre los dos)
-hay que publicarla en un proyecto gratuito de Firebase. La app ya viene
-compilada en `dist/`, así que no hace falta build:
+- **Importa los CSV de cuatro bancos** y los asigna solos a su dueño por IBAN.
+- **Clasifica el ~90% de los movimientos** en la primera importación, con reglas
+  precargadas para más de sesenta comercios de Estonia.
+- **Aprende de vos**: cada corrección a mano se guarda como regla y el mes
+  siguiente ya sale clasificada.
+- **Distingue el gasto real del movimiento interno.** La plata que va de una
+  cuenta propia a la compartida no es un gasto, y contarla lo sería todo dos veces.
+- **Atribuye por persona y por bolsillo**, incluido quién puso cuánto en la
+  cuenta compartida.
+- **Convierte a euros** los movimientos en otra moneda, con la cotización real
+  que viene en el propio archivo.
+- **Netea devoluciones y descarta reversos**, autorizaciones canceladas y
+  duplicados: reimportar el mismo archivo no ensucia nada.
+- **Plan contra realidad**: al principio del mes fijás ingresos, presupuesto por
+  categoría y meta de ahorro; al final comparás y armás el mes siguiente con un clic.
+- **Préstamos aparte.** La plata que sale porque se la prestaste a alguien se
+  sigue en su propia pantalla hasta que te la devuelven, sin ensuciar el gasto del mes.
+- **Sincroniza entre dispositivos** en tiempo real, con respaldo exportable a JSON.
+
+## Bancos soportados
+
+| Banco | Dónde bajar el extracto | Asignación |
+|---|---|---|
+| **LHV** | Cuenta → Extracto de cuenta | Automática por IBAN |
+| **Swedbank** | Kontod → Konto väljavõte → CSV | Automática por IBAN (estonio o inglés) |
+| **Wise** | Saldo → Extractos → Historial de transacciones | Automática por titular |
+| **Revolut** | Cuenta → Extracto (CSV) | Se elige una vez y queda recordada |
+
+## Empezar
+
+1. Abrí **[la app](https://matiascantella.github.io/gastos-en-casa/)** y cargá
+   los dos nombres, las cuentas de cada uno y desde qué mes querés medir.
+2. En **Ajustes → Cuentas**, poné el IBAN de cada cuenta. Es lo que hace que los
+   CSV se asignen solos.
+3. En **Ajustes → Nube**, pegá la configuración de tu proyecto de Firebase para
+   que los dos vean lo mismo desde el celular y la PC. El paso a paso está en
+   **[GUIA-NUBE.md](GUIA-NUBE.md)**.
+
+La app mide desde el mes que elijas en adelante. Los extractos más viejos se
+guardan en **Gastos → Histórico**: no cuentan en ningún número, pero sirven para
+clasificar los comercios de una vez y arrancar con las reglas ya aprendidas.
+
+## Arquitectura de datos
+
+Cada hogar es dueño de su backend. La app corre desde una única copia publicada,
+pero los datos de cada pareja viven en **su propio proyecto de Firebase**, con
+reglas de seguridad que solo dejan entrar a los miembros de ese hogar. Dos
+parejas que usan la misma dirección nunca se ven entre sí, y quien publica la
+app no tiene acceso a los datos de nadie.
+
+Sin nube configurada, todo queda en IndexedDB en el dispositivo y la app funciona igual.
+
+La configuración de Firebase se pega desde Ajustes y se guarda en el navegador
+de cada uno — no vive en este repositorio.
+
+## Publicar tu propia copia
 
 ```bash
-npx firebase-tools login
-npx firebase-tools use --add
-npx firebase-tools deploy
+npm ci
+npm run build
 ```
 
-El detalle de cada paso está en `PASO-A-PASO.html` y en `GUIA-NUBE.md`.
-Cuesta €0 y no pide tarjeta de crédito.
+El workflow de `.github/workflows/deploy.yml` compila y publica en GitHub Pages
+en cada push a `main`. Para que el login con Google funcione en tu dirección,
+agregala una vez en tu proyecto de Firebase → **Authentication → Settings →
+Authorized domains**.
 
-> **Cada pareja necesita su propio proyecto de Firebase.** Es lo que mantiene
-> los datos separados: dos parejas distintas nunca se ven entre sí.
-
----
-
-## Publicarla en GitHub Pages
-
-Alternativa a Firebase Hosting, y la más práctica si van a usarla varias parejas:
-**una sola copia publicada sirve para todas**. Cada pareja pega la configuración
-de su propio proyecto de Firebase desde Ajustes, y sus datos viven ahí.
-
-1. Subí el repo a GitHub.
-2. En el repo: **Settings → Pages → Source: GitHub Actions**.
-3. Listo. El workflow de `.github/workflows/deploy.yml` compila y publica en cada
-   push a `main`. Queda en `https://TU-USUARIO.github.io/NOMBRE-DEL-REPO/`.
-
-**Cada pareja, una única vez:** en su proyecto de Firebase →
-**Authentication → Settings → Authorized domains → Add domain** →
-`TU-USUARIO.github.io`. Sin eso, el login con Google no funciona en esa dirección.
-
-### Qué NO subir a git
-
-El `.gitignore` ya los cubre, pero conviene saberlo:
-
-- `gastos-respaldo-*.json` — **tiene todos tus movimientos**.
-- `.firebaserc` — apunta a tu proyecto.
-- `test/*.csv` — extractos reales del banco.
-
-El bloque `firebaseConfig` **no** está en el repo: cada uno lo pega en la app y
-queda guardado en su navegador.
-
----
-
-## Cómo se usa
-
-### Una sola vez
-
-1. **Al abrirla**, cargá los dos nombres, marcá qué cuentas tienen y elegí
-   **desde qué mes querés medir**.
-2. En **Ajustes → Cuentas**, poné el **IBAN** de cada una. Es lo que permite que
-   los CSV se asignen solos, sin que elijas nada.
-3. En **Ajustes → Quiénes son**, poné el **nombre completo tal como figura en los
-   extractos**. Con eso la app reconoce la plata que se mueve entre ustedes y no
-   la cuenta como gasto.
-
-### El mes de inicio
-
-La app mide **desde el mes que elijas en adelante**. Nada anterior aparece en el
-tablero, el cierre ni los ahorros, y el selector de mes no te deja ir para atrás.
-
-Si igual subís extractos con meses viejos, se guardan en **Gastos → Histórico**.
-No cuentan en ningún número: están ahí para que clasifiques los comercios de una
-vez y las reglas queden aprendidas para adelante. Es la forma barata de que la
-app arranque ya sabiendo dónde comprás.
-
-Se cambia cuando quieras desde **Ajustes → Desde cuándo se mide**.
-
-### Al principio de cada mes
-
-En **Plan**: el ingreso de cada uno, el presupuesto por categoría y la meta de
-ahorro. El botón *Copiar plan anterior* evita arrancar de cero.
-
-### Al final de cada mes
-
-1. **Importar**: arrastrá los CSV de todos los bancos. Todos juntos.
-2. **Gastos → Sin clasificar**: asignale categoría a lo que quedó suelto. Una vez
-   por comercio: la app crea la regla sola y el mes que viene ya sale clasificado.
-3. **Cierre de mes**: mirá plan contra realidad, y armá el mes siguiente con un clic.
-
----
-
-## De dónde bajar cada extracto
-
-| Banco | Dónde | Formato |
-|---|---|---|
-| **LHV** | Cuenta → Extracto de cuenta | CSV. Trae el IBAN: se asigna solo. |
-| **Swedbank** | Kontod → Konto väljavõte → CSV | Trae el IBAN: se asigna solo. Sirve en estonio o en inglés. |
-| **Wise** | Saldo → Extractos → Historial de transacciones | CSV. Trae el titular: se asigna solo. |
-| **Revolut** | Cuenta → Extracto | **CSV, no PDF.** No trae número de cuenta: la primera vez elegís de quién es y queda recordado. |
-
-Si subís el mismo archivo dos veces, no se duplica nada.
-
----
-
-## Qué hace por su cuenta
-
-- **Clasifica el ~90% de los gastos** en la primera importación, con reglas
-  precargadas para comercios de Estonia (Rimi, Selver, Maxima, Bolt, Wolt,
-  Telia, Elektrilevi, y unos sesenta más).
-- **Aprende**: cada vez que clasificás algo a mano, guarda la regla.
-- **Excluye los movimientos internos**: la plata que va de tu LHV a la Revolut
-  compartida no es un gasto. Sin esto, todo contaría dos veces.
-- **Neteea las devoluciones**: un reembolso de Rimi resta del supermercado en
-  vez de sumar como ingreso.
-- **Convierte a euros** los movimientos en dólares de Wise, usando la cotización
-  real que viene en el propio archivo.
-- **Descarta** los movimientos revertidos y las autorizaciones canceladas.
-
----
-
-## Para desarrollar
+## Desarrollo
 
 ```bash
 npm install
 npm run dev              # servidor de desarrollo
-npm run build            # build para publicar (carpeta dist/)
-SINGLE=1 npm run build   # build en un solo archivo (carpeta dist-single/)
+npm run build            # build de producción → dist/
+SINGLE=1 npm run build   # build en un único archivo HTML → dist-single/
 
-npx tsx test/parse.test.ts     # verifica los parsers contra CSV reales
-npx tsx test/pipeline.test.ts  # verifica clasificación, atribución y totales
+npx tsx test/parse.test.ts     # parsers contra extractos reales
+npx tsx test/pipeline.test.ts  # clasificación, atribución y totales
 node test/e2e.mjs              # recorrido completo en un navegador real
 ```
 
-### Cómo está armado
+**Stack:** React 19 · TypeScript · Vite · Tailwind · Dexie (IndexedDB) · Zustand ·
+Recharts · Firebase (Auth + Firestore) · PWA con service worker.
 
 ```
 src/
@@ -152,24 +112,18 @@ src/
     classify.ts       reglas, categorías, dueño de cada movimiento
     calc.ts           resúmenes mensuales, ahorro, series
     seed.ts           categorías y reglas precargadas
-    db.ts             IndexedDB (Dexie)
+    db.ts             persistencia local (Dexie)
     store.ts          estado de la app (Zustand)
-    cloud.ts          sincronización opcional con Firebase
+    cloud.ts          sincronización con Firebase
     text.ts           normalización, reparación de acentos, hashes
   pages/              una pantalla por archivo
   components/ui.tsx   piezas compartidas
 ```
 
-**Para agregar un banco nuevo:** escribí una función `parseX` en `parsers.ts` que
-devuelva `ParsedRow[]`, y sumá su firma de columnas a `detectBank`. El resto
-—clasificación, atribución, deduplicación— funciona igual sin tocar nada más.
+**Para sumar un banco:** escribí una función `parseX` en `parsers.ts` que
+devuelva `ParsedRow[]` y agregá su firma de columnas a `detectBank`. El resto
+—clasificación, atribución, deduplicación, conversión— funciona sin tocar nada más.
 
----
+## Licencia
 
-## Los datos son tuyos
-
-Todo vive en tu dispositivo (IndexedDB) y, si activás la nube, en **tu propio**
-proyecto de Firebase. No hay servidor de terceros en el medio.
-
-**Ajustes → Respaldo** descarga un JSON con todo y lo vuelve a cargar en cualquier
-otro dispositivo.
+MIT

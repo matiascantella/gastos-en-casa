@@ -1,7 +1,7 @@
 {
-  "name": "gastos",
+  "name": "gastos-en-casa",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -33,5 +33,7 @@
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
     "vite-plugin-singlefile": "^2.3.3"
-  }
+  },
+  "license": "MIT",
+  "description": "Control de gastos y ahorro para dos: importa extractos de LHV, Swedbank, Wise y Revolut, clasifica solo y compara el plan con la realidad."
 }
