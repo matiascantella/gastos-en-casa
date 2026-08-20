@@ -277,9 +277,15 @@ export async function signIn() {
     // El usuario cerró la ventana: no es un error que valga mostrar.
     if (c.includes('popup-closed-by-user') || c.includes('cancelled-popup-request')) return
     // El navegador bloqueó la ventana emergente: probamos por redirección.
+    // El navegador bloqueó la ventana emergente. Acá NO sirve caer a la
+    // redirección: en un dominio distinto al de Firebase, la vuelta desde Google
+    // se pierde y el usuario termina en google.com sin entender por qué. Es mejor
+    // decirle qué tiene que destrabar.
     if (c.includes('popup-blocked') || c.includes('operation-not-supported')) {
-      await m.auth.signInWithRedirect(auth, provider)
-      return
+      throw new Error(
+        'El navegador bloqueó la ventana de Google. Permitile ventanas emergentes a este sitio ' +
+        '(en el celular: menú ⋮ → Configuración del sitio → Ventanas emergentes) y probá de nuevo.',
+      )
     }
     throw e
   }

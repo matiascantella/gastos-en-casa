@@ -11,6 +11,7 @@ gastos-en-casa.html
 PASO-A-PASO.html
 
 # datos y configuración locales de cada instalación
+firebase-debug.log
 .firebaserc
 gastos-respaldo-*.json
 test/*.csv
