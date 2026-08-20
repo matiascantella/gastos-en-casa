@@ -5,7 +5,12 @@ shots
 .DS_Store
 *.local
 
-# Datos y configuración locales de cada instalación
+# artefactos de build y de despliegue local
+.firebase
+gastos-en-casa.html
+PASO-A-PASO.html
+
+# datos y configuración locales de cada instalación
 .firebaserc
 gastos-respaldo-*.json
 test/*.csv
