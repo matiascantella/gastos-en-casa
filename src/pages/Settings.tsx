@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../lib/store'
 import { BANK_LABEL } from '../lib/parsers'
 import { ownerLabel } from '../lib/classify'
@@ -416,6 +416,51 @@ function Backup() {
   )
 }
 
+/**
+ * QR del enlace de invitación, para que la otra persona lo escanee con la cámara
+ * en vez de recibir un enlace por mensaje.
+ *
+ * Se dibuja acá mismo, en el dispositivo: el enlace nunca sale a ningún servidor.
+ * La librería se carga solo cuando se muestra el QR, así no engorda la app para
+ * quien no lo use.
+ */
+function QrInvitacion({ link }: { link: string }) {
+  const [svg, setSvg] = useState<string | null>(null)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    let vivo = true
+    import('qrcode-generator')
+      .then(({ default: qrcode }) => {
+        // Corrección de errores baja: el enlace es largo y esto lo mantiene en
+        // 77 módulos, que se escanean bien de una pantalla a otra.
+        const qr = qrcode(0, 'L')
+        qr.addData(link)
+        qr.make()
+        if (vivo) setSvg(qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }))
+      })
+      .catch(() => { if (vivo) setError(true) })
+    return () => { vivo = false }
+  }, [link])
+
+  if (error) return <p className="text-[13px] text-critical">No se pudo generar el QR. Usá el enlace.</p>
+  if (!svg) return <p className="text-[13px] text-ink-mute">Generando…</p>
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div
+        className="w-[280px] max-w-full rounded-xl2 border border-line bg-white p-3"
+        // El SVG lo genera la librería a partir del enlace, no viene de afuera.
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+      <p className="text-[12.5px] text-ink-mute text-center leading-relaxed">
+        Que lo apunte con la cámara del celular. Se abre la app ya configurada y solo
+        tiene que entrar con su Google.
+      </p>
+    </div>
+  )
+}
+
 /** Datos crudos para diagnosticar cuando algo no conecta. */
 function Diagnostico() {
   const cloudState = useStore((s) => s.cloud)
@@ -458,6 +503,8 @@ function Cloud() {
   const [raw, setRaw] = useState('')
   const [invite, setInvite] = useState('')
   const [busy, setBusy] = useState(false)
+  /** enlace de invitación mientras se muestra el QR; null = QR oculto */
+  const [qr, setQr] = useState<string | null>(null)
 
   const configured = !!savedConfig()
   const st = cloudState.status
@@ -542,16 +589,36 @@ function Cloud() {
                   La forma fácil: mandale este enlace por mensaje. Lo abre, entra con su Google
                   y ya están conectados. No tiene que copiar ni pegar nada más.
                 </p>
-                <button
-                  className="btn-primary"
-                  onClick={() => {
-                    const cfg = savedConfig()
-                    if (!cfg) return toast('Todavía no hay configuración guardada', 'warn')
-                    const link = buildInviteLink(cfg, cloudState.householdId!)
-                    navigator.clipboard?.writeText(link)
-                    toast('Enlace copiado. Mandáselo por mensaje.')
-                  }}
-                >Copiar enlace de invitación</button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    className="btn-primary"
+                    onClick={() => {
+                      const cfg = savedConfig()
+                      if (!cfg) return toast('Todavía no hay configuración guardada', 'warn')
+                      const link = buildInviteLink(cfg, cloudState.householdId!)
+                      navigator.clipboard?.writeText(link)
+                      toast('Enlace copiado. Mandáselo por mensaje.')
+                    }}
+                  >Copiar enlace de invitación</button>
+                  <button
+                    className="btn-outline"
+                    onClick={() => {
+                      if (qr) return setQr(null)
+                      const cfg = savedConfig()
+                      if (!cfg) return toast('Todavía no hay configuración guardada', 'warn')
+                      setQr(buildInviteLink(cfg, cloudState.householdId!))
+                    }}
+                  >{qr ? 'Ocultar QR' : 'Mostrar QR'}</button>
+                </div>
+                {qr && (
+                  <div className="mt-3 space-y-2">
+                    <QrInvitacion link={qr} />
+                    <p className="text-[12px] text-ink-mute leading-relaxed">
+                      Este QR es la llave de tus datos: cualquiera que lo escanee entra al
+                      hogar. Mostráselo en persona, no lo publiques ni lo mandes a un grupo.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>
