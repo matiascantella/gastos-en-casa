@@ -5,7 +5,7 @@ import { ownerLabel } from '../lib/classify'
 import { Card, Field, Modal, SectionTitle } from '../components/ui'
 import { exportAll, importAll, wipeAll } from '../lib/db'
 import { monthKey, monthLabel } from '../lib/calc'
-import { buildInviteLink, canSync, parseConfig, savedConfig } from '../lib/cloud'
+import { buildInviteLink, canSync, mismoDominioQueAuth, parseConfig, savedConfig } from '../lib/cloud'
 import type { Account, Bank, Category } from '../types'
 import { SHARED } from '../types'
 
@@ -426,6 +426,7 @@ function Diagnostico() {
     `dominio: ${typeof location !== 'undefined' ? location.hostname : '—'}`,
     `proyecto: ${cfg?.projectId ?? '—'}`,
     `authDomain configurado: ${cfg?.authDomain ?? '—'}`,
+    `método de login: ${mismoDominioQueAuth() ? 'redirección (mismo dominio)' : 'ventana emergente (dominio distinto)'}`,
     `usuario: ${cloudState.user?.email ?? 'sin sesión'}`,
     `hogar: ${cloudState.householdId ?? '—'}`,
     cloudState.error ? `error: ${cloudState.error}` : 'error: ninguno',
@@ -581,8 +582,9 @@ function Cloud() {
       ) : (
         <div className="space-y-3">
           <p className="text-[13.5px] text-ink-soft leading-relaxed">
-            Al entrar, la página va a saltar a Google y volver acá sola. Es normal que
-            parpadee una vez.
+            {mismoDominioQueAuth()
+              ? 'Al entrar, la página va a saltar a Google y volver acá sola. Es normal que parpadee una vez.'
+              : 'Se abre una ventanita de Google para elegir tu cuenta. Si el navegador la bloquea, permitile abrir ventanas emergentes a este sitio.'}
           </p>
           <div className="flex flex-wrap gap-2">
             <button className="btn-primary" onClick={() => signIn()}>Entrar con Google</button>

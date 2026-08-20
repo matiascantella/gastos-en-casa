@@ -1,6 +1,6 @@
 // Service worker mínimo: la app queda disponible sin conexión.
 // Los datos viven en IndexedDB, así que offline funciona todo salvo la sincronización.
-const CACHE = 'gastos-v5'
+const CACHE = 'gastos-v6'
 
 self.addEventListener('install', (e) => {
   self.skipWaiting()

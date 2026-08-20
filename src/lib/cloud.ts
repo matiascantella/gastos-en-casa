@@ -231,20 +231,58 @@ export async function start(config: FirebaseConfig, h: CloudHandlers) {
 }
 
 /**
- * Login por REDIRECCIÓN, nunca por ventana emergente.
+ * ¿La app está publicada en el mismo dominio que el authDomain de Firebase?
  *
- * Firebase Auth cierra su base IndexedDB en cuanto la página se marca como
- * oculta (`onPageHide` -> `isHiding = true`), y a partir de ahí cualquier
- * operación falla con "Database is closing/hidden". Abrir la ventana emergente
- * del login es exactamente lo que oculta la página, así que el popup se
- * autosabotea. La redirección navega la página entera y vuelve limpia.
+ * Es la pregunta que decide cómo se entra, y no es un detalle: la redirección de
+ * Google deja el resultado guardado en el almacenamiento de <proyecto>.firebaseapp.com.
+ * Si la app vive en otro dominio (GitHub Pages, por ejemplo), los navegadores
+ * particionan ese almacenamiento por sitio y la app no puede leerlo al volver:
+ * el usuario va a Google, vuelve, y queda sin sesión y sin ningún error visible.
+ */
+export function mismoDominioQueAuth(): boolean {
+  const d = String(app?.options?.authDomain ?? savedConfig()?.authDomain ?? '')
+  return !!d && typeof location !== 'undefined' && d === location.hostname
+}
+
+/**
+ * Login con Google.
+ *
+ * - Mismo dominio que el authDomain (Firebase Hosting): REDIRECCIÓN. Navega la
+ *   página entera y vuelve con la sesión hecha; es lo más robusto en el celular.
+ * - Dominio distinto (GitHub Pages): VENTANA EMERGENTE. Es la única que funciona,
+ *   porque devuelve las credenciales por postMessage y no depende de poder leer
+ *   el almacenamiento del otro dominio.
+ *
+ * Ojo con el popup: Firebase Auth cierra su base IndexedDB en cuanto la página se
+ * marca como oculta (`onPageHide` -> "Database is closing/hidden"), y abrir la
+ * ventana emergente es justamente lo que la oculta. Por eso la autenticación se
+ * crea con localStorage como persistencia principal (ver start()): sin esa parte,
+ * este camino vuelve a romperse.
  */
 export async function signIn() {
   if (!canSync()) throw new Error('file-protocol')
   const m = await load()
   const provider = new m.auth.GoogleAuthProvider()
   provider.setCustomParameters({ prompt: 'select_account' })
-  await m.auth.signInWithRedirect(auth, provider)
+
+  if (mismoDominioQueAuth()) {
+    await m.auth.signInWithRedirect(auth, provider)
+    return
+  }
+
+  try {
+    await m.auth.signInWithPopup(auth, provider)
+  } catch (e: any) {
+    const c = String(e?.code ?? '')
+    // El usuario cerró la ventana: no es un error que valga mostrar.
+    if (c.includes('popup-closed-by-user') || c.includes('cancelled-popup-request')) return
+    // El navegador bloqueó la ventana emergente: probamos por redirección.
+    if (c.includes('popup-blocked') || c.includes('operation-not-supported')) {
+      await m.auth.signInWithRedirect(auth, provider)
+      return
+    }
+    throw e
+  }
 }
 
 export async function signOutCloud() {
