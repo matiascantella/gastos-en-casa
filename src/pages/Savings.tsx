@@ -179,6 +179,8 @@ export default function Savings() {
         )}
       </Card>
 
+      <CuentasDelMes data={data} pockets={pockets} />
+
       {/* aportes a la compartida */}
       {aportesMes.length > 0 && (
         <Card className="p-5">
@@ -231,6 +233,102 @@ export default function Savings() {
 }
 
 type Row = ReturnType<typeof savingsSeries>[number]
+type Pocket = { id: string; label: string; color: string }
+
+/**
+ * El mismo "dónde quedó el ahorro", un nivel más abajo: por cuenta.
+ *
+ * Deliberadamente NO va como más colores en el gráfico apilado. Las cuentas no
+ * son categorías nuevas: son subdivisiones de un bolsillo que ya tiene su color.
+ * Sumar seis u ocho tonos volvería ilegible la barra y rompería la regla de que
+ * un color identifica siempre a la misma persona. Acá cada cuenta hereda el color
+ * de su dueño y se distingue por nombre y por el largo de su barra.
+ */
+function CuentasDelMes({ data, pockets }: { data: Row[]; pockets: Pocket[] }) {
+  const [mes, setMes] = useState<string>(data[data.length - 1]?.month ?? '')
+  const fila = data.find((d) => d.month === mes) ?? data[data.length - 1]
+  const cuentas = fila?.cuentas ?? []
+  if (cuentas.length === 0) return null
+
+  // La barra se dibuja contra el movimiento más grande del mes, en valor absoluto:
+  // así se comparan entre sí las que suman y las que restan.
+  const tope = Math.max(...cuentas.map((c) => Math.abs(c.net)), 1)
+
+  const grupos = pockets
+    .map((p) => ({
+      pocket: p,
+      total: cuentas.filter((c) => c.ownerId === p.id).reduce((a, c) => a + c.net, 0),
+      filas: cuentas.filter((c) => c.ownerId === p.id),
+    }))
+    .filter((g) => g.filas.length > 0)
+
+  return (
+    <Card className="p-5">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <SectionTitle hint="El ahorro del mes abierto cuenta por cuenta. Cada cuenta lleva el color de su dueño.">
+          En qué cuenta quedó
+        </SectionTitle>
+        {data.length > 1 && (
+          <select
+            className="input h-8 py-0 text-[13px] w-auto no-print"
+            value={fila.month}
+            onChange={(e) => setMes(e.target.value)}
+            aria-label="Mes a detallar"
+          >
+            {[...data].reverse().map((d) => (
+              <option key={d.month} value={d.month}>{monthLabel(d.month, true)}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      <div className="space-y-5">
+        {grupos.map((g) => (
+          <div key={g.pocket.id}>
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: g.pocket.color }} aria-hidden />
+              <span className="text-[13.5px] font-medium grow">{g.pocket.label}</span>
+              <span className={cx('num text-[13.5px] font-semibold', g.total < 0 && 'text-critical')}>
+                {eur(g.total, { sign: true, decimals: 0 })}
+              </span>
+            </div>
+            <div className="space-y-2 pl-[18px]">
+              {g.filas.map((c) => (
+                <div key={c.key} className="flex items-center gap-3">
+                  <span className={cx('text-[13px] w-[42%] shrink-0 truncate', c.sinCuenta && 'text-ink-mute italic')}
+                    title={c.label}>
+                    {c.label}
+                  </span>
+                  <span className="grow h-2 rounded-full bg-line/50 relative overflow-hidden">
+                    <span
+                      className="absolute inset-y-0 rounded-full"
+                      style={{
+                        width: `${(Math.abs(c.net) / tope) * 100}%`,
+                        background: g.pocket.color,
+                        // Lo que salió se dibuja hueco: mismo color, sin relleno.
+                        opacity: c.net < 0 ? 0.32 : 1,
+                        left: 0,
+                      }}
+                    />
+                  </span>
+                  <span className={cx('num text-[13px] w-[86px] text-right shrink-0', c.net < 0 && 'text-critical')}>
+                    {eur(c.net, { sign: true, decimals: 0 })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-[12.5px] text-ink-mute mt-4 leading-relaxed">
+        Las barras claras son cuentas de las que salió plata este mes; las llenas, las
+        que quedaron con más. Un traspaso entre cuentas de ustedes aparece dos veces —
+        en menos de una y en más de la otra— y por eso los totales por persona no cambian.
+      </p>
+    </Card>
+  )
+}
 
 function SavingsTable({ data }: { data: Row[] }) {
   return (

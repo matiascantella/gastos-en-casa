@@ -2,6 +2,13 @@ import type { Category, MonthPlan, Settings, Txn } from '../types'
 import { SHARED, UNCLASSIFIED } from '../types'
 import { mentionsPerson } from './text'
 
+/**
+ * Prefijo del renglón que representa la plata de una persona cuya cuenta no está
+ * importada. No es una cuenta real: es el espejo de una transferencia de la que
+ * solo tenemos un lado.
+ */
+const SIN_CUENTA = 'sin-cuenta:'
+
 export const monthKey = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 
@@ -69,6 +76,16 @@ export interface MonthSummary {
    * total del mes, porque las transferencias internas se cancelan entre sí.
    */
   netByOwner: Array<{ ownerId: string; net: number }>
+  /** el mismo reparto abierto por cuenta, para el detalle de "dónde quedó" */
+  netByAccount: Array<{
+    key: string
+    accountId?: string
+    ownerId: string
+    label: string
+    bank?: string
+    sinCuenta: boolean
+    net: number
+  }>
   /** cuánto puso cada uno en la cuenta compartida */
   aportes: Array<{ ownerId: string; monto: number }>
   /**
@@ -155,7 +172,16 @@ export function summarize(
   const net = new Map<string, number>()
   const sumar = (owner: string, v: number) => net.set(owner, (net.get(owner) ?? 0) + v)
 
-  for (const t of forBalance) sumar(t.ownerId, t.amount)
+  // El mismo reparto, un nivel más abajo: en qué cuenta concreta quedó la plata.
+  // La clave es el accountId, salvo el espejo sintético de abajo, que por
+  // definición no tiene cuenta importada.
+  const netAcc = new Map<string, number>()
+  const sumarAcc = (key: string, v: number) => netAcc.set(key, (netAcc.get(key) ?? 0) + v)
+
+  for (const t of forBalance) {
+    sumar(t.ownerId, t.amount)
+    sumarAcc(t.accountId, t.amount)
+  }
 
   const dia = (d: string) => new Date(d).getTime() / 86400000
   const internos = forBalance.filter((t) => t.kind === 'internal')
@@ -174,18 +200,46 @@ export function summarize(
         Math.abs(dia(b.date) - dia(a.date)) <= 5,
     )
     if (tieneEspejo) continue
-    const otro = settings.members.find(
+    // Si el texto menciona a más de una persona, no hay forma de saber de quién
+    // salió: adivinar sería peor que no atribuirlo. Va a "sin atribuir" y la
+    // pantalla avisa, que es la única salida honesta.
+    const candidatos = settings.members.filter(
       (m) =>
         m.id !== a.ownerId &&
         mentionsPerson(`${a.counterparty ?? ''} ${a.description}`, [m.name, ...m.aliases]),
     )
-    if (otro) sumar(otro.id, -a.amount)
-    else netUnmatched += a.amount
+    const otro = candidatos.length === 1 ? candidatos[0] : undefined
+    if (otro) {
+      sumar(otro.id, -a.amount)
+      // Sabemos de quién es esa plata, pero no de qué cuenta suya salió: su
+      // extracto no está importado. Va a un renglón propio para que el detalle
+      // por cuenta siga sumando lo mismo que el bolsillo.
+      sumarAcc(`${SIN_CUENTA}${otro.id}`, -a.amount)
+    } else netUnmatched += a.amount
   }
 
   const netByOwner = ownerIds
     .filter((id) => net.has(id))
     .map((ownerId) => ({ ownerId, net: net.get(ownerId) ?? 0 }))
+
+  // Detalle por cuenta, ya ordenado de mayor a menor dentro de cada bolsillo.
+  const netByAccount = [...netAcc.entries()]
+    .map(([key, valor]) => {
+      const sinCuenta = key.startsWith(SIN_CUENTA)
+      const cuenta = sinCuenta ? undefined : settings.accounts.find((a) => a.id === key)
+      const ownerId = sinCuenta ? key.slice(SIN_CUENTA.length) : (cuenta?.ownerId ?? UNCLASSIFIED)
+      return {
+        key,
+        accountId: sinCuenta ? undefined : key,
+        ownerId,
+        label: sinCuenta ? 'Cuentas sin importar' : (cuenta?.label ?? 'Cuenta desconocida'),
+        bank: cuenta?.bank,
+        sinCuenta,
+        net: Math.round(valor * 100) / 100,
+      }
+    })
+    .filter((a) => Math.abs(a.net) >= 0.01)
+    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net))
 
   // Aportes a la cuenta compartida: entradas internas, atribuidas a quien las mandó.
   const aportes = settings.members
@@ -211,6 +265,7 @@ export function summarize(
     byOwner,
     byOwnerIncome,
     netByOwner,
+    netByAccount,
     aportes,
     netUnmatched: Math.round(netUnmatched * 100) / 100,
     unclassifiedCount: expenses.filter((t) => t.categoryId === UNCLASSIFIED).length,
@@ -275,6 +330,7 @@ export function savingsSeries(months: string[], txns: Txn[], plans: MonthPlan[],
       missingIncome: s.missingIncome,
       // reparto del ahorro del mes por bolsillo, para el gráfico apilado
       net: Object.fromEntries(s.netByOwner.map((o) => [o.ownerId, Math.round(o.net * 100) / 100])),
+      cuentas: s.netByAccount,
       aportes: s.aportes,
       netUnmatched: s.netUnmatched,
     }
