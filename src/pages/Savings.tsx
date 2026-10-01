@@ -90,6 +90,8 @@ export default function Savings() {
         </div>
       </Card>
 
+      <SaldoHoy data={data} pockets={pockets} startMonth={settings.startMonth} />
+
       {/* acumulado */}
       <Card className="p-5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -234,6 +236,112 @@ export default function Savings() {
 
 type Row = ReturnType<typeof savingsSeries>[number]
 type Pocket = { id: string; label: string; color: string }
+
+/**
+ * Cuánta plata hay AHORA en cada cuenta de cada uno.
+ *
+ * Es el mismo dato que el gráfico de arriba, pero sumado en vez de mes a mes:
+ * si en agosto una cuenta subió 826 y en septiembre bajó 656, hoy tiene 170.
+ * Responde la pregunta que uno se hace de verdad —"¿cuánto me queda?"— que no
+ * es la misma que "¿cuánto ahorré este mes?".
+ *
+ * Importante: esto cuenta desde el mes de inicio. Si una cuenta ya tenía plata
+ * antes de empezar a usar la app, el número es lo que cambió desde entonces, no
+ * el saldo del banco. Para que coincida hay que cargar un ajuste de saldo una vez.
+ */
+function SaldoHoy({ data, pockets, startMonth }: { data: Row[]; pockets: Pocket[]; startMonth: string }) {
+  const cuentas = useMemo(() => {
+    const acc = new Map<string, { key: string; label: string; ownerId: string; sinCuenta: boolean; net: number }>()
+    for (const d of data) {
+      for (const c of d.cuentas ?? []) {
+        const e = acc.get(c.key) ?? { key: c.key, label: c.label, ownerId: c.ownerId, sinCuenta: c.sinCuenta, net: 0 }
+        e.net += c.net
+        acc.set(c.key, e)
+      }
+    }
+    return [...acc.values()].filter((c) => Math.abs(c.net) >= 0.01)
+  }, [data])
+
+  if (cuentas.length === 0) return null
+
+  const total = cuentas.reduce((a, c) => a + c.net, 0)
+  const tope = Math.max(...cuentas.map((c) => Math.abs(c.net)), 1)
+
+  const grupos = pockets
+    .map((p) => ({
+      pocket: p,
+      total: cuentas.filter((c) => c.ownerId === p.id).reduce((a, c) => a + c.net, 0),
+      filas: cuentas.filter((c) => c.ownerId === p.id).sort((a, b) => b.net - a.net),
+    }))
+    .filter((g) => g.filas.length > 0)
+
+  return (
+    <Card className="p-5">
+      <SectionTitle hint={`Lo que entró menos lo que salió en cada cuenta desde ${monthLabel(startMonth, true)}, sumando todos los meses.`}>
+        Cuánto hay hoy en cada cuenta
+      </SectionTitle>
+
+      <div className="space-y-5">
+        {grupos.map((g) => (
+          <div key={g.pocket.id}>
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: g.pocket.color }} aria-hidden />
+              <span className="text-[14px] font-medium grow">{g.pocket.label}</span>
+              <span className={cx('num text-[17px] font-semibold', g.total < 0 && 'text-critical')}>
+                {eur(g.total, { decimals: 0 })}
+              </span>
+            </div>
+            <div className="space-y-2 pl-[18px]">
+              {g.filas.map((c) => (
+                <div key={c.key} className="flex items-center gap-3">
+                  <span
+                    className={cx('text-[13px] w-[42%] shrink-0 truncate', c.sinCuenta && 'text-ink-mute italic')}
+                    title={c.label}
+                  >
+                    {c.label}
+                  </span>
+                  <span className="grow h-2 rounded-full bg-line/50 relative overflow-hidden">
+                    <span
+                      className="absolute inset-y-0 left-0 rounded-full"
+                      style={{
+                        width: `${(Math.abs(c.net) / tope) * 100}%`,
+                        background: g.pocket.color,
+                        // En rojo no: el color sigue siendo el de la persona. Una
+                        // cuenta en negativo se distingue por el signo y por la
+                        // barra hueca, no inventando un color nuevo.
+                        opacity: c.net < 0 ? 0.32 : 1,
+                      }}
+                    />
+                  </span>
+                  <span className={cx('num text-[13px] w-[92px] text-right shrink-0', c.net < 0 && 'text-critical')}>
+                    {eur(c.net, { decimals: 0 })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-baseline gap-2 mt-4 pt-3 border-t border-line">
+        <span className="text-[13.5px] text-ink-soft grow">Entre todas las cuentas</span>
+        <span className={cx('num text-[17px] font-semibold', total < 0 && 'text-critical')}>
+          {eur(total, { decimals: 0 })}
+        </span>
+      </div>
+
+      <p className="text-[12.5px] text-ink-mute mt-3 leading-relaxed">
+        Es lo que entró menos lo que salió desde {monthLabel(startMonth, true)}. Si una cuenta
+        ya tenía plata antes de esa fecha, cargale una vez un <strong className="font-medium">ajuste
+        de saldo</strong> desde Gastos → + A mano, y a partir de ahí el número coincide con el del banco.
+        {cuentas.some((c) => c.sinCuenta) && (
+          <> Las <em>cuentas sin importar</em> no son un saldo: son la plata que esa persona movió
+          hacia las cuentas que sí seguimos, desde otras suyas que no están cargadas.</>
+        )}
+      </p>
+    </Card>
+  )
+}
 
 /**
  * El mismo "dónde quedó el ahorro", un nivel más abajo: por cuenta.

@@ -106,6 +106,7 @@ SINGLE=1 npm run build   # build en un único archivo HTML → dist-single/
 
 npx tsx test/parse.test.ts     # parsers contra extractos reales
 npx tsx test/pipeline.test.ts  # clasificación, atribución y totales
+npx tsx test/saldos.test.ts    # el saldo de hoy cierra con el cambio mes a mes
 node test/e2e.mjs              # recorrido completo en un navegador real
 node test/demo-shots.mjs       # capturas del README, con datos inventados
 ```
